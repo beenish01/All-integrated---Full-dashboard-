@@ -1,0 +1,34 @@
+# main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import SQLModel
+from database import engine
+from routers import auth
+
+# Import SlowAPI components
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+
+app = FastAPI()
+
+origins = ["http://localhost:8080", "http://127.0.0.1:8080"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Set up SlowAPI limiter using the client's IP address
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
+
+# Create database tables
+SQLModel.metadata.create_all(engine)
+
+# Include authentication routes
+app.include_router(auth.router)
